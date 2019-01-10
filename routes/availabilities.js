@@ -9,7 +9,7 @@ router.post('/:scheduleId/users/:userId/candidates/:candidateId', authentication
   const userId = req.params.userId;
   const candidateId = req.params.candidateId;
   let availability = req.body.availability;
-  availability = availability ? parseInt(availability) :0;
+  availability = availability ? parseInt(availability) : 0;
 
   Availability.upsert({
     scheduleId: scheduleId,

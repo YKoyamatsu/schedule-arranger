@@ -8,12 +8,14 @@ const Candidate = require('../models/candidate');
 const User = require('../models/user');
 const Availability = require('../models/availability');
 const Comment = require('../models/comment');
+const csrf = require('csurf');
+const csrfProtection = csrf({cookie: true});
 
-router.get('/new', authenticationEnsurer, (req, res, next) => {
-  res.render('new', { user: req.user });
+router.get('/new', authenticationEnsurer, csrfProtection, (req, res, next) => {
+  res.render('new', { user: req.user, csrfToken: req.csrfToken() });
 });
 
-router.post('/', authenticationEnsurer, (req, res, next) => {
+router.post('/', authenticationEnsurer, csrfProtection, (req, res, next) => {
   const scheduleId = uuid.v4();
   const updatedAt = new Date();
   Schedule.create({
@@ -119,7 +121,7 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
       });
     });
 
-router.get('/:scheduleId/edit', authenticationEnsurer, (req,res,next) => {
+router.get('/:scheduleId/edit', authenticationEnsurer, csrfProtection, (req,res,next) => {
   Schedule.findOne({
     where: {
       scheduleId: req.params.scheduleId
@@ -133,7 +135,8 @@ router.get('/:scheduleId/edit', authenticationEnsurer, (req,res,next) => {
         res.render('edit', {
           user: req.user,
           schedule: schedule,
-          candidates: candidates
+          candidates: candidates,
+          csrfToken: req.csrfToken()
         });
       });
     }else {
@@ -148,14 +151,14 @@ function isMine(req, schedule) {
   return schedule && parseInt(schedule.createdBy) === parseInt(req.user.id);
 }
 
-router.post('/:scheduleId', authenticationEnsurer , (req, res, next) => {
-  Schedule.findOne({
+router.post('/:scheduleId', authenticationEnsurer , csrfProtection, (req, res, next) => {
+  if(parseInt(req.query.edit) === 1 ) {
+    Schedule.findOne({
     where: {
       scheduleId: req.params.scheduleId
     }
   }).then((schedule) => {
     if(schedule && isMine(req, schedule)){
-      if(parseInt(req.query.edit) === 1 ) {
       const updatedAt = new Date();
       schedule.update({
         scheduleId: schedule.storedSchedule,
@@ -186,13 +189,13 @@ router.post('/:scheduleId', authenticationEnsurer , (req, res, next) => {
       err.status = 400;
       next(err);
     }
+  });
   } else {
     const err = new Error('指定された予定がない、または、編集する権限がありません');
     err.status = 400;
     next(400);
   }
   });
-});
 
 function deleteScheduleAggregate(scheduleId, done, err){
   const promiseCommentDestroy = Comment.findAll({
@@ -219,7 +222,7 @@ function deleteScheduleAggregate(scheduleId, done, err){
   }).then(() => {
     if(err) return done(err);
     done();
-  })
+  });
 }
 
 router.deleteScheduleAggregate = deleteScheduleAggregate;
